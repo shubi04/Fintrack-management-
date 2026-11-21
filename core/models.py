@@ -1,20 +1,92 @@
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
 class Category(models.Model):
- KIND=[('expense','Expense'),('income','Income')]
- user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='finance_categories')
- name=models.CharField(max_length=60); kind=models.CharField(max_length=10,choices=KIND,default='expense'); color=models.CharField(max_length=7,default='#0d9468')
- class Meta:
-  ordering=['kind','name']; constraints=[models.UniqueConstraint(fields=['user','name','kind'],name='unique_user_category_kind')]
- def __str__(self): return f'{self.name} ({self.kind})'
+    KINDS = [("expense", "Expense"), ("income", "Income")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="categories")
+    name = models.CharField(max_length=50)
+    icon = models.CharField(max_length=8, default="🏷️")
+    color = models.CharField(max_length=7, default="#6C5CE7")
+    kind = models.CharField(max_length=7, choices=KINDS, default="expense")
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("user", "name")
+        ordering = ["kind", "name"]
+        verbose_name_plural = "categories"
+
+    def __str__(self):
+        return self.name
+
+
 class Transaction(models.Model):
- KIND=[('income','Income'),('expense','Expense')]; PAYMENT=[('UPI','UPI'),('Cash','Cash'),('Card','Card'),('Bank','Bank'),('Other','Other')]
- user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='transactions'); title=models.CharField(max_length=120); amount=models.DecimalField(max_digits=12,decimal_places=2); kind=models.CharField(max_length=10,choices=KIND); category=models.ForeignKey(Category,on_delete=models.SET_NULL,null=True,blank=True); date=models.DateField(default=timezone.localdate); payment_method=models.CharField(max_length=10,choices=PAYMENT,default='UPI'); note=models.CharField(max_length=250,blank=True); created_at=models.DateTimeField(auto_now_add=True)
- class Meta: ordering=['-date','-created_at']
- def __str__(self): return f'{self.title} - {self.amount}'
+    KINDS = Category.KINDS
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="transactions")
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL)
+    kind = models.CharField(max_length=7, choices=KINDS, default="expense")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=200, blank=True)
+    date = models.DateField()
+    receipt = models.FileField(upload_to="receipts/", null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [models.Index(fields=["user", "date"]), models.Index(fields=["user", "kind", "date"])]
+
+    @property
+    def title(self):
+        return self.note or (self.category.name if self.category else "Transaction")
+
+
 class Budget(models.Model):
- user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='budgets'); category=models.ForeignKey(Category,on_delete=models.CASCADE); month=models.DateField(help_text='Use the first day of the month'); limit_amount=models.DecimalField(max_digits=12,decimal_places=2)
- class Meta:
-  ordering=['-month','category__name']; constraints=[models.UniqueConstraint(fields=['user','category','month'],name='unique_user_category_month_budget')]
- def __str__(self): return f'{self.category.name} - {self.month:%b %Y}'
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="budgets")
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    month = models.DateField(help_text="First day of the month")
+    limit = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        unique_together = ("user", "category", "month")
+        ordering = ["category__name"]
+
+
+class Goal(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="goals")
+    name = models.CharField(max_length=80)
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    saved_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    target_date = models.DateField()
+    icon = models.CharField(max_length=8, default="🎯")
+    color = models.CharField(max_length=7, default="#10B981")
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["target_date", "-id"]
+
+    def __str__(self):
+        return f"{self.name} ({self.progress_pct}%)"
+
+    @property
+    def progress_pct(self):
+        if not self.target_amount:
+            return 0
+        return min(int((self.saved_amount / self.target_amount) * 100), 100)
+
+    @property
+    def remaining_amount(self):
+        return max(Decimal(0), self.target_amount - self.saved_amount)
+
+    @property
+    def days_left(self):
+        delta = (self.target_date - timezone.localdate()).days
+        return max(0, delta)
+
+    @property
+    def per_day_needed(self):
+        if self.days_left and self.remaining_amount > 0:
+            return self.remaining_amount / self.days_left
+        return Decimal(0)
+
