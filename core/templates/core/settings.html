@@ -1,0 +1,27 @@
+{% extends "core/app.html" %}
+{% block title %}Settings · FinTrack AI{% endblock %}
+{% block head %}<h1>Settings</h1><p>Manage your account and preferences.</p>{% endblock %}
+{% block content %}
+<div class="sec-title">Profile</div>
+<form class="card" method="post" data-loading>{% csrf_token %}<input type="hidden" name="action" value="profile">
+ <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px"><div class="avatar" style="width:52px;height:52px;font-size:20px">{{ user.first_name|default:user.username|slice:":1"|upper }}</div><div><b>{{ user.get_full_name|default:user.username }}</b><br><small>Member since {{ user.date_joined|date:"d M Y" }}</small></div></div>
+ <div class="grid g2"><label class="field"><span>First name</span>{{ pform.first_name }}</label><label class="field"><span>Last name</span>{{ pform.last_name }}</label></div>
+ <label class="field"><span>Email</span>{{ pform.email }}{% for e in pform.email.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+ <button class="btn btn-primary">Save profile</button></form>
+<div class="sec-title">Preferences</div>
+<div class="card"><div class="row"><div class="grow"><b>Theme</b><small>Light or dark appearance</small></div><button class="btn" onclick="document.getElementById('theme-btn').click()">Toggle</button></div>
+ <div class="row"><div class="grow"><b>Hide amounts</b><small>Blur balances in public</small></div><button class="btn" onclick="document.getElementById('privacy-btn').click()">Toggle</button></div>
+ <div class="row"><div class="grow"><b>Currency</b></div><span>Indian Rupee (₹)</span></div></div>
+<div class="sec-title">Security</div>
+<form class="card" method="post" data-loading>{% csrf_token %}<input type="hidden" name="action" value="password">
+ <label class="field"><span>Current password</span>{{ pwform.old_password }}{% for e in pwform.old_password.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+ <label class="field"><span>New password</span>{{ pwform.new_password1 }}{% for e in pwform.new_password1.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+ <label class="field"><span>Confirm new password</span>{{ pwform.new_password2 }}{% for e in pwform.new_password2.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+ <button class="btn btn-primary">Change password</button></form>
+<div class="sec-title">Data</div>
+<div class="card"><div class="row"><div class="grow"><b>Export all data</b><small>Download every transaction as CSV</small></div><a class="btn" href="{% url 'export_csv' %}">Export</a></div></div>
+<div class="sec-title">Account</div>
+<div class="card"><a class="btn btn-block" href="{% url 'logout' %}" style="margin-bottom:12px"><svg class="i"><use href="#i-out"/></svg>Log out</a>
+ <form method="post" data-confirm="This permanently deletes your account and all data. Continue?">{% csrf_token %}<input type="hidden" name="action" value="delete">
+  <label class="field"><span>Danger zone: type DELETE to remove your account</span><input name="confirm" autocomplete="off"></label><button class="btn btn-danger btn-block">Delete account</button></form></div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "core/app.html" %}{% load money %}
+{% block title %}Transactions · FinTrack AI{% endblock %}
+{% block head %}<h1>Transactions</h1><p>Manage your income and expenses.</p>{% endblock %}
+{% block tools %}<button class="btn btn-primary" data-open-tx><svg class="i"><use href="#i-plus"/></svg><span>Add</span></button>{% endblock %}
+{% block content %}
+<form method="get" class="toolbar"><input class="input" name="q" value="{{ f.q }}" placeholder="Search transactions" aria-label="Search">
+ <button type="button" class="icon-btn" data-open="sheet-filter" aria-label="Filters"><svg class="i"><use href="#i-filter"/></svg></button>
+ <a class="icon-btn" href="{% url 'export_csv' %}?filtered=1&{{ qs_string }}" aria-label="Export CSV" title="Export CSV"><svg class="i"><use href="#i-down"/></svg></a>
+ <a class="icon-btn" href="{% url 'export_pdf' %}?{{ qs_string }}" aria-label="Export PDF" title="Export PDF Statement" target="_blank" style="font-weight:700;font-size:11px">PDF</a></form>
+<div class="scroll-x"><a class="pill {% if not f.type %}on{% endif %}" href="?">All</a><a class="pill {% if f.type == 'income' %}on{% endif %}" href="?type=income">Income</a><a class="pill {% if f.type == 'expense' %}on{% endif %}" href="?type=expense">Expense</a>
+ {% if filtered %}<a class="pill" href="{% url 'transactions' %}">✕ Reset</a>{% endif %}</div>
+<div class="card">
+{% for label, items in groups %}<div class="group">{{ label }}</div>
+ {% for t in items %}<div class="row"><div class="ico" style="background:{{ t.category.color|default:'#9CA3AF' }}22">{{ t.category.icon|default:'🧾' }}</div>
+  <div class="grow"><b>{{ t.title }}</b><small>{{ t.category.name|default:"Uncategorised" }}</small></div>
+  <span class="{% if t.kind == 'income' %}plus{% else %}minus{% endif %}">{% if t.kind == 'income' %}+{% else %}-{% endif %}{{ t.amount|inr }}</span>
+  <div class="act">{% if t.receipt %}<a href="{{ t.receipt.url }}" target="_blank" class="icon-btn" title="View receipt attachment" aria-label="Receipt">📎</a>{% endif %}<button data-edit data-url="{% url 'tx_edit' t.pk %}" data-kind="{{ t.kind }}" data-amount="{{ t.amount }}" data-cat="{{ t.category_id|default:'' }}" data-date="{{ t.date|date:'Y-m-d' }}" data-note="{{ t.note }}" aria-label="Edit"><svg class="i"><use href="#i-edit"/></svg></button>
+   <form method="post" action="{% url 'tx_delete' t.pk %}" data-confirm="Delete this transaction?">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button aria-label="Delete"><svg class="i"><use href="#i-trash"/></svg></button></form></div></div>{% endfor %}
+{% empty %}<div class="empty"><div class="em">🧾</div><p>{% if filtered %}No transactions match your filters.{% else %}No transactions yet. Add your first one!{% endif %}</p><button class="btn btn-primary" data-open-tx>Add transaction</button></div>{% endfor %}
+{% if page.paginator.num_pages > 1 %}<div class="pager">{% if page.has_previous %}<a class="btn" href="?{{ qs_string }}&page={{ page.previous_page_number }}">Previous</a>{% endif %}<span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="btn" href="?{{ qs_string }}&page={{ page.next_page_number }}">Next</a>{% endif %}</div>{% endif %}
+</div>
+<div class="sheet" id="sheet-filter"><div class="sheet-backdrop" data-close></div>
+ <form class="sheet-panel" method="get"><div class="sheet-head"><h3>Filters</h3><button type="button" class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <input type="hidden" name="q" value="{{ f.q }}">
+  <label class="field"><span>Type</span><select name="type"><option value="">All types</option><option value="income" {% if f.type == 'income' %}selected{% endif %}>Income</option><option value="expense" {% if f.type == 'expense' %}selected{% endif %}>Expense</option></select></label>
+  <label class="field"><span>Category</span><select name="category"><option value="">All categories</option>{% for c in all_categories %}<option value="{{ c.id }}" {% if f.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>{% endfor %}</select></label>
+  <div class="grid g2"><label class="field"><span>From</span><input type="date" name="from" value="{{ f.from }}"></label><label class="field"><span>To</span><input type="date" name="to" value="{{ f.to }}"></label></div>
+  <div class="grid g2"><label class="field"><span>Min ₹</span><input type="number" name="min" value="{{ f.min }}"></label><label class="field"><span>Max ₹</span><input type="number" name="max" value="{{ f.max }}"></label></div>
+  <label class="field"><span>Sort by</span><select name="sort"><option value="">Newest first</option><option value="oldest" {% if f.sort == 'oldest' %}selected{% endif %}>Oldest first</option><option value="amount_desc" {% if f.sort == 'amount_desc' %}selected{% endif %}>Highest amount</option><option value="amount_asc" {% if f.sort == 'amount_asc' %}selected{% endif %}>Lowest amount</option></select></label>
+  <button class="btn btn-primary btn-block">Apply filters</button></form></div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "core/app.html" %}{% load money %}
+{% block title %}Financial Goals · FinTrack AI{% endblock %}
+{% block head %}<h1>Savings Goals</h1><p>Set targets, track milestones, and build wealth.</p>{% endblock %}
+{% block tools %}<button class="btn btn-primary" data-open="sheet-goal"><svg class="i"><use href="#i-plus"/></svg><span>New goal</span></button>{% endblock %}
+{% block content %}
+<div class="grid g-cards" style="margin-bottom:16px">
+ <div class="card stat hero"><div class="l">Total target</div><div class="v">{{ total_target|inr }}</div><div class="s">Across all goals</div></div>
+ <div class="card stat"><div class="l">Total saved</div><div class="v" style="color:var(--income)">{{ total_saved|inr }}</div><div class="s">Accumulated balance</div></div>
+ <div class="card stat"><div class="l">Overall progress</div><div class="v" style="color:var(--primary)">{{ overall_pct }}%</div><div class="s">Completion rate</div></div>
+</div>
+
+<div class="cat-grid">
+{% for g in goals %}
+<div class="card" style="display:flex;flex-direction:column;justify-content:space-between">
+ <div>
+  <div class="card-head">
+   <div style="display:flex;align-items:center;gap:10px">
+    <div class="ico" style="background:{{ g.color }}22">{{ g.icon }}</div>
+    <div><b>{{ g.name }}</b><br><small class="muted">Target: {{ g.target_date|date:"d M Y" }}</small></div>
+   </div>
+   <form method="post" action="{% url 'goal_delete' g.pk %}" data-confirm="Delete goal '{{ g.name }}'?">{% csrf_token %}
+    <button class="icon-btn" aria-label="Delete"><svg class="i"><use href="#i-trash"/></svg></button>
+   </form>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin:12px 0 6px">
+   <span>{{ g.saved_amount|inr0 }} of {{ g.target_amount|inr0 }}</span>
+   <b style="color:{{ g.color }}">{{ g.progress_pct }}%</b>
+  </div>
+  <div class="bar" style="margin-bottom:10px"><i style="width:{{ g.progress_pct }}%;background:{{ g.color }}"></i></div>
+  <small class="muted">
+   {% if g.remaining_amount > 0 %}
+    {{ g.remaining_amount|inr0 }} left · {{ g.days_left }} day{{ g.days_left|pluralize }} remaining
+    {% if g.per_day_needed %} · save ~{{ g.per_day_needed|inr0 }}/day{% endif %}
+   {% else %}
+    🎉 Goal achieved! Congratulations!
+   {% endif %}
+  </small>
+ </div>
+
+ <form method="post" action="{% url 'goal_add_money' g.pk %}" style="display:flex;gap:6px;margin-top:16px">{% csrf_token %}
+  <input class="input" type="number" name="amount" min="1" step="1" placeholder="+ Add ₹" required style="padding:6px 10px;font-size:13px">
+  <button class="btn btn-primary" style="padding:6px 12px;font-size:13px">Add</button>
+ </form>
+</div>
+{% empty %}
+<div class="card empty" style="grid-column:1/-1">
+ <div class="em">🎯</div>
+ <p>You have no active savings goals. Create one to start tracking!</p>
+ <button class="btn btn-primary" data-open="sheet-goal">Create your first goal</button>
+</div>
+{% endfor %}
+</div>
+
+<div class="sheet" id="sheet-goal"><div class="sheet-backdrop" data-close></div>
+ <form class="sheet-panel" method="post" action="{% url 'goal_save' %}" data-loading>{% csrf_token %}
+  <div class="sheet-head"><h3>New savings goal</h3><button type="button" class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <label class="field"><span>Goal name</span><input name="name" maxlength="80" placeholder="e.g. Emergency Fund, New Laptop, Vacation" required></label>
+  <div class="grid g2">
+   <label class="field"><span>Target amount (₹)</span><input type="number" name="target_amount" min="1" step="1" required placeholder="50000"></label>
+   <label class="field"><span>Already saved (₹)</span><input type="number" name="saved_amount" min="0" step="1" value="0"></label>
+  </div>
+  <label class="field"><span>Target date</span><input type="date" name="target_date" required></label>
+  <div class="grid g2">
+   <label class="field"><span>Icon (emoji)</span><input name="icon" value="🎯" maxlength="8"></label>
+   <label class="field"><span>Accent colour</span><input type="color" name="color" value="#10B981"></label>
+  </div>
+  <button class="btn btn-primary btn-block">Save goal</button>
+ </form>
+</div>
+{% endblock %}
