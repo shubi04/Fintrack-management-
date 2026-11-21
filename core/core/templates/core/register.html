@@ -1,0 +1,19 @@
+{% extends "core/base.html" %}
+{% block title %}Create account · FinTrack AI{% endblock %}
+{% block body %}
+<div class="auth"><div class="card">
+ <div class="brand" style="padding:0"><img class="logo" src="/static/img/favicon.svg" alt="">FinTrack AI</div>
+ <h1>Create your account</h1><p class="sub">Start understanding where your money goes.</p>
+ <form method="post" data-loading novalidate>{% csrf_token %}
+  <label class="field"><span>First name</span>{{ form.first_name }}{% for e in form.first_name.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+  <label class="field"><span>Email</span>{{ form.email }}{% for e in form.email.errors %}<div class="err">{{ e }}</div>{% endfor %}</label>
+  <label class="field"><span>Password</span><div class="pw">{{ form.password }}<button type="button" data-pw-toggle aria-label="Show password"><svg class="i"><use href="#i-eye"/></svg></button></div>
+   <div class="strength"><i></i></div>
+   {% for e in form.password.errors %}<div class="err">{{ e }}</div>{% empty %}<div class="hint">At least 8 characters</div>{% endfor %}</label>
+  <button class="btn btn-primary btn-block">Create account</button>
+  <p class="hint" style="text-align:center;margin-top:12px">🔒 Your data is secure</p>
+ </form>
+ <p class="muted" style="text-align:center;margin:14px 0 0">Already registered? <a href="{% url 'login' %}"><b>Login</b></a></p>
+</div></div>
+<script>document.addEventListener('DOMContentLoaded',()=>{const i=document.querySelector('#id_password');if(i)i.setAttribute('data-strength','')})</script>
+{% endblock %}
